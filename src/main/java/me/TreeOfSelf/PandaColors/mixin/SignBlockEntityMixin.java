@@ -41,7 +41,7 @@ public class SignBlockEntityMixin {
         NbtComponent customData = components.get(DataComponentTypes.CUSTOM_DATA);
         if (customData != null) {
             NbtCompound nbt = customData.copyNbt();
-            String editingSideKey = editingFront ? "panda_colorss_original_front" : "panda_colors_original_back";
+            String editingSideKey = editingFront ? "panda_colors_original_front" : "panda_colors_original_back";
             if (nbt.contains(editingSideKey)) {
                 restoreTextSide(self, nbt, editingSideKey, editingFront, true);
             }
