@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "me.TreeOfSelf.PandaColors.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"AnvilScreenHandlerMixin",
+		"ForgingScreenHandlerMixin",
+		"SignBlockEntityMixin",
+		"accessor.ForgingScreenHandlerAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
