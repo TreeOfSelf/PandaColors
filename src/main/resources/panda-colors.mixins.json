@@ -1,14 +1,15 @@
 {
-	"required": true,
-	"package": "me.TreeOfSelf.PandaColors.mixin",
-	"compatibilityLevel": "JAVA_21",
-	"mixins": [
-		"AnvilScreenHandlerMixin",
-		"ForgingScreenHandlerMixin",
-		"SignBlockEntityMixin",
-		"accessor.ForgingScreenHandlerAccessor"
-	],
-	"injectors": {
-		"defaultRequire": 1
+  "required": true,
+  "package": "me.TreeOfSelf.PandaColors.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AnvilScreenHandlerMixin",
+    "ForgingScreenHandlerMixin",
+    "ServerPlayNetworkHandlerMixin",
+    "SignBlockEntityMixin",
+    "accessor.ForgingScreenHandlerAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
 	}
 }
