@@ -8,6 +8,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.screen.*;
 import net.minecraft.screen.slot.ForgingSlotsManager;
+import net.minecraft.util.StringHelper;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -44,24 +45,38 @@ public abstract class AnvilScreenHandlerMixin extends ForgingScreenHandler {
 	}
 
 	@Inject(method = "setNewItemName", at = @At("TAIL"))
-	private void storeOriginalNameInResult(String name, CallbackInfoReturnable<Boolean> cir) {
+	private void handleNameChanges(String name, CallbackInfoReturnable<Boolean> cir) {
 		if (cir.getReturnValue()) {
 			ItemStack resultStack = this.output.getStack(0);
-			if (!resultStack.isEmpty() && this.newItemName != null && !this.newItemName.isEmpty()) {
-				NbtComponent existingData = resultStack.get(DataComponentTypes.CUSTOM_DATA);
-				NbtCompound finalData;
-				if (existingData != null) {
-					finalData = existingData.copyNbt();
-				} else {
-					finalData = new NbtCompound();
+			if (!resultStack.isEmpty()) {
+				String sanitizedName = StringHelper.stripInvalidChars(name);
+				if (StringHelper.isBlank(sanitizedName)) {
+					NbtComponent existingData = resultStack.get(DataComponentTypes.CUSTOM_DATA);
+					if (existingData != null) {
+						NbtCompound nbtData = existingData.copyNbt();
+						nbtData.remove("panda_colors_original_name");
+						if (nbtData.isEmpty()) {
+							resultStack.remove(DataComponentTypes.CUSTOM_DATA);
+						} else {
+							resultStack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbtData));
+						}
+					}
 				}
-				finalData.putString("panda_colors_original_name", this.newItemName);
+				else if (this.newItemName != null && !this.newItemName.isEmpty()) {
+					NbtComponent existingData = resultStack.get(DataComponentTypes.CUSTOM_DATA);
+					NbtCompound finalData;
+					if (existingData != null) {
+						finalData = existingData.copyNbt();
+					} else {
+						finalData = new NbtCompound();
+					}
+					finalData.putString("panda_colors_original_name", this.newItemName);
 
-				resultStack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(finalData));
+					resultStack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(finalData));
+				}
 			}
 		}
 	}
-
 
 	@ModifyArg(method = "updateResult",
 			at = @At(value = "INVOKE",
