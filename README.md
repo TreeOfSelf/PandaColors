@@ -4,7 +4,7 @@
 
 ## Description
 
-Adds simple colors and foramtting to signs and named items in anvil using [Placeholder API](https://placeholders.pb4.eu/user/text-format/#colors).
+Adds simple colors and foramtting to signs, names in anvil, and books using [Placeholder API](https://placeholders.pb4.eu/user/text-format/#colors).
 Signs will keep their formatting even when you edit them, as well as items. 
 
 ## Media
