@@ -10,6 +10,7 @@ public class PandaColors implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		PandaColorsConfig.load();
 		LOGGER.info("PandaColors Started!");
 	}
 }

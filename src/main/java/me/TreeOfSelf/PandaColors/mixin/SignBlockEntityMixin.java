@@ -1,46 +1,62 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
 import com.google.gson.JsonObject;
-import me.TreeOfSelf.PandaColors.TextFormattingHelper;
-import net.minecraft.block.entity.SignBlockEntity;
-import net.minecraft.block.entity.SignText;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
 import com.google.gson.JsonParser;
-import java.util.UUID;
-import java.util.List;
+import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.TextFormattingHelper;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.network.FilteredText;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 @Mixin(SignBlockEntity.class)
 public class SignBlockEntityMixin {
 
-    @Inject(method = "setEditor", at = @At("HEAD"))
+    @Inject(method = "setAllowedPlayerEditor", at = @At("HEAD"))
     private void handleEditingStart(UUID editor, CallbackInfo ci) {
+        if (!PandaColorsConfig.get().sign) {
+            return;
+        }
         SignBlockEntity self = (SignBlockEntity) (Object) this;
-        if (self.getWorld() != null && !self.getWorld().isClient() && editor != null) {
-            ServerWorld serverWorld = (ServerWorld) self.getWorld();
-            ServerPlayerEntity serverPlayer = (ServerPlayerEntity) serverWorld.getPlayerByUuid(editor);
-            boolean editingFront = self.isPlayerFacingFront(serverPlayer);
+        if (self.getLevel() != null && !self.getLevel().isClientSide() && editor != null) {
+            ServerLevel serverLevel = (ServerLevel) self.getLevel();
+            ServerPlayer serverPlayer = (ServerPlayer) serverLevel.getPlayerByUUID(editor);
+            if (serverPlayer == null) {
+                return;
+            }
+            boolean editingFront = self.isFacingFrontText(serverPlayer);
             restoreForEditing(self, editingFront);
-            serverPlayer.networkHandler.sendPacket(self.toUpdatePacket());
+            serverPlayer.connection.send(self.getUpdatePacket());
         }
     }
 
     @Unique
     private void restoreForEditing(SignBlockEntity self, boolean editingFront) {
-        var components = self.getComponents();
-        NbtComponent customData = components.get(DataComponentTypes.CUSTOM_DATA);
+        if (!PandaColorsConfig.get().sign) {
+            return;
+        }
+        DataComponentMap components = self.components();
+        CustomData customData = components.get(DataComponents.CUSTOM_DATA);
         if (customData != null) {
-            NbtCompound nbt = customData.copyNbt();
+            CompoundTag nbt = customData.copyTag();
             String editingSideKey = editingFront ? "panda_colors_original_front" : "panda_colors_original_back";
             if (nbt.contains(editingSideKey)) {
                 restoreTextSide(self, nbt, editingSideKey, editingFront, true);
@@ -53,9 +69,9 @@ public class SignBlockEntityMixin {
     }
 
     @Unique
-    private void restoreTextSide(SignBlockEntity self, NbtCompound nbt, String key, boolean front, boolean showOriginal) {
+    private void restoreTextSide(SignBlockEntity self, CompoundTag nbt, String key, boolean front, boolean showOriginal) {
 
-        String jsonString = nbt.getString(key).get();
+        String jsonString = nbt.getString(key).orElse("");
         JsonObject originalLines = JsonParser.parseString(jsonString).getAsJsonObject();
 
         SignText signText = self.getText(front);
@@ -65,7 +81,7 @@ public class SignBlockEntityMixin {
                 String lineKey = "line_" + i;
                 if (originalLines.has(lineKey)) {
                     String originalLine = originalLines.get(lineKey).getAsString();
-                    signText = signText.withMessage(i, Text.literal(originalLine));
+                    signText = signText.setMessage(i, Component.literal(originalLine));
                 }
             }
         } else {
@@ -78,12 +94,12 @@ public class SignBlockEntityMixin {
                     combinedText.append(originalLine);
                 }
             }
-            
-            Text formattedCombined = TextFormattingHelper.formatTextWithCustomCodes(combinedText.toString());
-            Text[] formattedLines = splitFormattedTextProperly(formattedCombined);
-            
+
+            Component formattedCombined = TextFormattingHelper.formatStyledInput(combinedText.toString());
+            Component[] formattedLines = splitFormattedTextProperly(formattedCombined);
+
             for (int i = 0; i < 4; i++) {
-                signText = signText.withMessage(i, formattedLines[i]);
+                signText = signText.setMessage(i, formattedLines[i]);
             }
         }
 
@@ -91,76 +107,79 @@ public class SignBlockEntityMixin {
 
     }
 
-    @Inject(method = "tryChangeText", at = @At("TAIL"))
-    private void formatAndStoreSignText(PlayerEntity player, boolean front, List<net.minecraft.server.filter.FilteredMessage> messages, CallbackInfo ci) {
+    @Inject(method = "updateSignText", at = @At("TAIL"))
+    private void formatAndStoreSignText(Player player, boolean front, List<FilteredText> messages, CallbackInfo ci) {
+        if (!PandaColorsConfig.get().sign) {
+            return;
+        }
         SignBlockEntity self = (SignBlockEntity) (Object) this;
-        if (self.getWorld() != null && !self.getWorld().isClient()) {
+        if (self.getLevel() != null && !self.getLevel().isClientSide()) {
             SignText signText = self.getText(front);
             JsonObject originalLines = new JsonObject();
             StringBuilder combinedText = new StringBuilder();
             for (int i = 0; i < 4; i++) {
-                Text originalText = signText.getMessage(i, false);
+                Component originalText = signText.getMessage(i, false);
                 String originalString = originalText.getString();
                 originalLines.addProperty("line_" + i, originalString);
-                
+
                 if (i > 0) combinedText.append("\n");
                 combinedText.append(originalString);
 
             }
-            Text formattedCombined = TextFormattingHelper.formatTextWithCustomCodes(combinedText.toString());
-            Text[] formattedLines = splitFormattedTextProperly(formattedCombined);
+            Component formattedCombined = TextFormattingHelper.formatStyledInput(combinedText.toString());
+            Component[] formattedLines = splitFormattedTextProperly(formattedCombined);
             SignText formattedSignText = signText;
             for (int i = 0; i < 4; i++) {
-                formattedSignText = formattedSignText.withMessage(i, formattedLines[i]);
+                formattedSignText = formattedSignText.setMessage(i, formattedLines[i]);
             }
             String key = front ? "panda_colors_original_front" : "panda_colors_original_back";
-            
-            var components = self.getComponents();
-            NbtComponent existingData = components.get(DataComponentTypes.CUSTOM_DATA);
-            NbtCompound finalData;
+
+            DataComponentMap components = self.components();
+            CustomData existingData = components.get(DataComponents.CUSTOM_DATA);
+            CompoundTag finalData;
             if (existingData != null) {
-                finalData = existingData.copyNbt();
+                finalData = existingData.copyTag();
             } else {
-                finalData = new NbtCompound();
+                finalData = new CompoundTag();
             }
             finalData.putString(key, originalLines.toString());
-            
-            var newComponents = net.minecraft.component.ComponentMap.builder()
+
+            DataComponentMap newComponents = DataComponentMap.builder()
                     .addAll(components)
-                    .add(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(finalData))
+                    .set(DataComponents.CUSTOM_DATA, CustomData.of(finalData))
                     .build();
             self.setComponents(newComponents);
-            
+
             self.setText(formattedSignText, front);
         }
     }
 
     @Unique
-    private Text[] splitFormattedTextProperly(Text formattedText) {
-        java.util.List<Text> lines = new java.util.ArrayList<>();
-        final net.minecraft.text.MutableText[] currentLine = {Text.empty()};
-        
+    private Component[] splitFormattedTextProperly(Component formattedText) {
+        java.util.List<Component> lines = new java.util.ArrayList<>();
+        final MutableComponent[] currentLine = {Component.empty()};
+
         formattedText.visit((style, string) -> {
             if (string.contains("\n")) {
                 String[] parts = string.split("\n", -1);
                 for (int i = 0; i < parts.length; i++) {
                     if (i > 0) {
                         lines.add(currentLine[0]);
-                        currentLine[0] = Text.empty();
+                        currentLine[0] = Component.empty();
                     }
                     if (!parts[i].isEmpty()) {
-                        currentLine[0].append(Text.literal(parts[i]).setStyle(style));
+                        currentLine[0].append(Component.literal(parts[i]).withStyle(style));
                     }
                 }
             } else {
-                currentLine[0].append(Text.literal(string).setStyle(style));
+                currentLine[0].append(Component.literal(string).withStyle(style));
             }
-            return java.util.Optional.empty();
-        }, net.minecraft.text.Style.EMPTY);
+            return Optional.empty();
+        }, Style.EMPTY);
         lines.add(currentLine[0]);
-        Text[] result = new Text[4];
+        Component[] result = new Component[4];
         for (int i = 0; i < 4; i++) {
-            result[i] = i < lines.size() ? lines.get(i) : Text.empty();
+            result[i] = i < lines.size() ? lines.get(i) : Component.empty();
         }
         return result;
     }
