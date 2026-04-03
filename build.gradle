@@ -28,8 +28,8 @@ loom {
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation include(fabricApi.module("fabric-api-base", project.fabric_version))
-	implementation(include("eu.pb4:placeholder-api:3.0.0-beta.2+26.1"))
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	implementation include("eu.pb4:placeholder-api:3.0.0-beta.2+26.1")
 }
 
 processResources {

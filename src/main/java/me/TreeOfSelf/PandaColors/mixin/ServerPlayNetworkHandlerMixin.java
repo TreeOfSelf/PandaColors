@@ -13,7 +13,7 @@ import java.util.List;
 @Mixin(ServerGamePacketListenerImpl.class)
 public class ServerPlayNetworkHandlerMixin {
 
-    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true, name = "contents")
+    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private List<FilteredText> pandaColors$mapBookPages(List<FilteredText> contents) {
         if (!PandaColorsConfig.get().book) {
             return contents;
@@ -27,7 +27,7 @@ public class ServerPlayNetworkHandlerMixin {
                 .toList();
     }
 
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, name = "title")
+    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private FilteredText pandaColors$mapBookTitle(FilteredText title) {
         if (!PandaColorsConfig.get().book) {
             return title;
@@ -39,7 +39,7 @@ public class ServerPlayNetworkHandlerMixin {
         );
     }
 
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, name = "contents")
+    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private List<FilteredText> pandaColors$mapSignBookContents(List<FilteredText> contents) {
         if (!PandaColorsConfig.get().book) {
             return contents;

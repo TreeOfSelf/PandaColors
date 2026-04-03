@@ -2,7 +2,6 @@ package me.TreeOfSelf.PandaColors.mixin;
 
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,7 +17,7 @@ public class PlayerListMixin {
             method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/ChatType$Bound;)V",
             at = @At("HEAD"),
             argsOnly = true,
-            name = "message")
+            ordinal = 0)
     private PlayerChatMessage pandaColors$formatPlayerChat(PlayerChatMessage message) {
         if (!PandaColorsConfig.get().chat) {
             return message;
@@ -30,7 +29,7 @@ public class PlayerListMixin {
             method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Lnet/minecraft/commands/CommandSourceStack;Lnet/minecraft/network/chat/ChatType$Bound;)V",
             at = @At("HEAD"),
             argsOnly = true,
-            name = "message")
+            ordinal = 0)
     private PlayerChatMessage pandaColors$formatCommandBroadcast(PlayerChatMessage message) {
         if (!PandaColorsConfig.get().commandBroadcast) {
             return message;
