@@ -13,31 +13,43 @@ import java.util.List;
 @Mixin(ServerGamePacketListenerImpl.class)
 public class ServerPlayNetworkHandlerMixin {
 
-    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true, name = "contents")
     private List<FilteredText> pandaColors$mapBookPages(List<FilteredText> contents) {
         if (!PandaColorsConfig.get().book) {
             return contents;
         }
+
         return contents.stream()
-                .map(page -> new FilteredText(TextFormattingHelper.applyAmpersandColorCodes(page.raw()), page.mask()))
+                .map(page -> new FilteredText(
+                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                        page.mask()
+                ))
                 .toList();
     }
 
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, name = "title")
     private FilteredText pandaColors$mapBookTitle(FilteredText title) {
         if (!PandaColorsConfig.get().book) {
             return title;
         }
-        return new FilteredText(TextFormattingHelper.applyAmpersandColorCodes(title.raw()), title.mask());
+
+        return new FilteredText(
+                TextFormattingHelper.applyAmpersandColorCodes(title.raw()),
+                title.mask()
+        );
     }
 
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 1)
+    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, name = "contents")
     private List<FilteredText> pandaColors$mapSignBookContents(List<FilteredText> contents) {
         if (!PandaColorsConfig.get().book) {
             return contents;
         }
+
         return contents.stream()
-                .map(page -> new FilteredText(TextFormattingHelper.applyAmpersandColorCodes(page.raw()), page.mask()))
+                .map(page -> new FilteredText(
+                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                        page.mask()
+                ))
                 .toList();
     }
 }

@@ -18,8 +18,7 @@ public class PlayerListMixin {
             method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/ChatType$Bound;)V",
             at = @At("HEAD"),
             argsOnly = true,
-            ordinal = 0
-    )
+            name = "message")
     private PlayerChatMessage pandaColors$formatPlayerChat(PlayerChatMessage message) {
         if (!PandaColorsConfig.get().chat) {
             return message;
@@ -31,8 +30,7 @@ public class PlayerListMixin {
             method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Lnet/minecraft/commands/CommandSourceStack;Lnet/minecraft/network/chat/ChatType$Bound;)V",
             at = @At("HEAD"),
             argsOnly = true,
-            ordinal = 0
-    )
+            name = "message")
     private PlayerChatMessage pandaColors$formatCommandBroadcast(PlayerChatMessage message) {
         if (!PandaColorsConfig.get().commandBroadcast) {
             return message;
