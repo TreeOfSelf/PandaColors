@@ -2,54 +2,66 @@ package me.TreeOfSelf.PandaColors.mixin;
 
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.Filterable;
 import net.minecraft.server.network.FilteredText;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.WrittenBookContent;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
 @Mixin(ServerGamePacketListenerImpl.class)
-public class ServerPlayNetworkHandlerMixin {
+public abstract class ServerPlayNetworkHandlerMixin {
 
-    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true, ordinal = 0)
-    private List<FilteredText> pandaColors$mapBookPages(List<FilteredText> contents) {
-        if (!PandaColorsConfig.get().book) {
-            return contents;
-        }
+    @Shadow
+    public ServerPlayer player;
 
-        return contents.stream()
-                .map(page -> new FilteredText(
-                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
-                        page.mask()
-                ))
-                .toList();
+    @Shadow
+    protected abstract Filterable<String> filterableFromOutgoing(FilteredText text);
+
+    @Inject(method = "updateBookContents", at = @At("HEAD"))
+    private void pandaColors$mapBookPages(List<FilteredText> contents, int slot, CallbackInfo ci) {
+        if (!PandaColorsConfig.get().book) return;
+
+        contents.replaceAll(page -> new FilteredText(
+                TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                page.mask()
+        ));
     }
 
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 0)
-    private FilteredText pandaColors$mapBookTitle(FilteredText title) {
-        if (!PandaColorsConfig.get().book) {
-            return title;
-        }
+    @Inject(method = "signBook", at = @At("HEAD"), cancellable = true)
+    private void pandaColors$signBook(FilteredText title, List<FilteredText> contents, int slot, CallbackInfo ci) {
+        if (!PandaColorsConfig.get().book) return;
 
-        return new FilteredText(
+        FilteredText newTitle = new FilteredText(
                 TextFormattingHelper.applyAmpersandColorCodes(title.raw()),
                 title.mask()
         );
-    }
-
-    @ModifyVariable(method = "signBook", at = @At("HEAD"), argsOnly = true, ordinal = 1)
-    private List<FilteredText> pandaColors$mapSignBookContents(List<FilteredText> contents) {
-        if (!PandaColorsConfig.get().book) {
-            return contents;
-        }
-
-        return contents.stream()
+        List<FilteredText> newContents = contents.stream()
                 .map(page -> new FilteredText(
                         TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
                         page.mask()
                 ))
                 .toList();
+
+        ItemStack carried = this.player.getInventory().getItem(slot);
+        if (carried.has(DataComponents.WRITABLE_BOOK_CONTENT)) {
+            ItemStack writtenBook = carried.transmuteCopy(Items.WRITTEN_BOOK);
+            writtenBook.remove(DataComponents.WRITABLE_BOOK_CONTENT);
+            List<Filterable<Component>> pages = newContents.stream().map((page) -> (Filterable<Component>)(Filterable<?>)this.filterableFromOutgoing(page).map(Component::literal)).toList();            writtenBook.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(this.filterableFromOutgoing(newTitle), this.player.getPlainTextName(), 0, pages, true));
+            this.player.getInventory().setItem(slot, writtenBook);
+        }
+        ci.cancel();
     }
 }
