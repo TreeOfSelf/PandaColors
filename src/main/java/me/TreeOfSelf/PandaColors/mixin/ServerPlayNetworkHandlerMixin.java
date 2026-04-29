@@ -3,8 +3,10 @@ package me.TreeOfSelf.PandaColors.mixin;
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.Filterable;
 import net.minecraft.server.network.FilteredText;
@@ -29,6 +31,20 @@ public abstract class ServerPlayNetworkHandlerMixin {
 
     @Shadow
     protected abstract Filterable<String> filterableFromOutgoing(FilteredText text);
+
+    @ModifyVariable(
+            method = "broadcastChatMessage",
+            at = @At("HEAD"),
+            argsOnly = true,
+            ordinal = 0
+    )
+    private PlayerChatMessage pandaColors$formatChatBeforeBroadcast(PlayerChatMessage message) {
+        if (!PandaColorsConfig.get().chat) {
+            return message;
+        }
+
+        return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(message.signedContent()));
+    }
 
     @Inject(method = "updateBookContents", at = @At("HEAD"))
     private void pandaColors$mapBookPages(List<FilteredText> contents, int slot, CallbackInfo ci) {
