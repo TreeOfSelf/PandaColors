@@ -30,7 +30,7 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	implementation include("eu.pb4:placeholder-api:3.0.0-beta.2+26.1")
+	implementation include("eu.pb4:placeholder-api:3.1.0-beta.1+26.2")
 }
 
 
