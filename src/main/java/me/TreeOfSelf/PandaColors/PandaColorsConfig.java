@@ -24,6 +24,7 @@ public final class PandaColorsConfig {
     public boolean sign = true;
     public boolean anvil = true;
     public boolean book = true;
+    public boolean markdown = true;
 
     private static PandaColorsConfig defaults() {
         return new PandaColorsConfig();
@@ -43,6 +44,7 @@ public final class PandaColorsConfig {
                 if (o.has("sign")) cfg.sign = o.get("sign").getAsBoolean();
                 if (o.has("anvil")) cfg.anvil = o.get("anvil").getAsBoolean();
                 if (o.has("book")) cfg.book = o.get("book").getAsBoolean();
+                if (o.has("markdown")) cfg.markdown = o.get("markdown").getAsBoolean();
             } catch (Exception e) {
                 PandaColors.LOGGER.warn("Could not read {}, using defaults", PATH, e);
             }
