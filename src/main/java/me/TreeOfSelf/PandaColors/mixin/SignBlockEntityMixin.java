@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,14 +43,14 @@ public class SignBlockEntityMixin {
             if (serverPlayer == null) {
                 return;
             }
-            boolean editingFront = self.isFacingFrontText(serverPlayer);
-            restoreForEditing(self, editingFront);
+            SignTextSlot editingSlot = self.getSlotPlayerIsFacing(serverPlayer);
+            restoreForEditing(self, editingSlot);
             serverPlayer.connection.send(self.getUpdatePacket());
         }
     }
 
     @Unique
-    private void restoreForEditing(SignBlockEntity self, boolean editingFront) {
+    private void restoreForEditing(SignBlockEntity self, SignTextSlot editingSlot) {
         if (!PandaColorsConfig.get().sign) {
             return;
         }
@@ -57,31 +58,37 @@ public class SignBlockEntityMixin {
         CustomData customData = components.get(DataComponents.CUSTOM_DATA);
         if (customData != null) {
             CompoundTag nbt = customData.copyTag();
-            String editingSideKey = editingFront ? "panda_colors_original_front" : "panda_colors_original_back";
+            SignTextSlot otherSlot = editingSlot == SignTextSlot.FRONT ? SignTextSlot.BACK : SignTextSlot.FRONT;
+            String editingSideKey = originalKey(editingSlot);
             if (nbt.contains(editingSideKey)) {
-                restoreTextSide(self, nbt, editingSideKey, editingFront, true);
+                restoreTextSide(self, nbt, editingSideKey, editingSlot, true);
             }
-            String otherSideKey = editingFront ? "panda_colors_original_back" : "panda_colors_original_front";
+            String otherSideKey = originalKey(otherSlot);
             if (nbt.contains(otherSideKey)) {
-                restoreTextSide(self, nbt, otherSideKey, !editingFront, false);
+                restoreTextSide(self, nbt, otherSideKey, otherSlot, false);
             }
         }
     }
 
     @Unique
-    private void restoreTextSide(SignBlockEntity self, CompoundTag nbt, String key, boolean front, boolean showOriginal) {
+    private static String originalKey(SignTextSlot slot) {
+        return slot == SignTextSlot.FRONT ? "panda_colors_original_front" : "panda_colors_original_back";
+    }
+
+    @Unique
+    private void restoreTextSide(SignBlockEntity self, CompoundTag nbt, String key, SignTextSlot slot, boolean showOriginal) {
 
         String jsonString = nbt.getString(key).orElse("");
         JsonObject originalLines = JsonParser.parseString(jsonString).getAsJsonObject();
 
-        SignText signText = self.getText(front);
+        SignText.Mutable signText = self.getText(slot).asMutable();
 
         if (showOriginal) {
             for (int i = 0; i < 4; i++) {
                 String lineKey = "line_" + i;
                 if (originalLines.has(lineKey)) {
                     String originalLine = originalLines.get(lineKey).getAsString();
-                    signText = signText.setMessage(i, Component.literal(originalLine));
+                    signText.setLine(i, Component.literal(originalLine));
                 }
             }
         } else {
@@ -99,26 +106,27 @@ public class SignBlockEntityMixin {
             Component[] formattedLines = splitFormattedTextProperly(formattedCombined);
 
             for (int i = 0; i < 4; i++) {
-                signText = signText.setMessage(i, formattedLines[i]);
+                signText.setLine(i, formattedLines[i]);
             }
         }
 
-        self.setText(signText, front);
+        self.setText(signText.asImmutable(), slot);
 
     }
 
     @Inject(method = "updateSignText", at = @At("TAIL"))
-    private void formatAndStoreSignText(Player player, boolean front, List<FilteredText> messages, CallbackInfo ci) {
+    private void formatAndStoreSignText(Player player, SignTextSlot slot, List<FilteredText> messages, CallbackInfo ci) {
         if (!PandaColorsConfig.get().sign) {
             return;
         }
         SignBlockEntity self = (SignBlockEntity) (Object) this;
         if (self.getLevel() != null && !self.getLevel().isClientSide()) {
-            SignText signText = self.getText(front);
+            SignText signText = self.getText(slot);
+            List<Component> currentLines = signText.getMessages(false);
             JsonObject originalLines = new JsonObject();
             StringBuilder combinedText = new StringBuilder();
             for (int i = 0; i < 4; i++) {
-                Component originalText = signText.getMessage(i, false);
+                Component originalText = currentLines.get(i);
                 String originalString = originalText.getString();
                 originalLines.addProperty("line_" + i, originalString);
 
@@ -128,11 +136,11 @@ public class SignBlockEntityMixin {
             }
             Component formattedCombined = TextFormattingHelper.formatStyledInput(combinedText.toString());
             Component[] formattedLines = splitFormattedTextProperly(formattedCombined);
-            SignText formattedSignText = signText;
+            SignText.Mutable formattedSignText = signText.asMutable();
             for (int i = 0; i < 4; i++) {
-                formattedSignText = formattedSignText.setMessage(i, formattedLines[i]);
+                formattedSignText.setLine(i, formattedLines[i]);
             }
-            String key = front ? "panda_colors_original_front" : "panda_colors_original_back";
+            String key = originalKey(slot);
 
             DataComponentMap components = self.components();
             CustomData existingData = components.get(DataComponents.CUSTOM_DATA);
@@ -150,7 +158,7 @@ public class SignBlockEntityMixin {
                     .build();
             self.setComponents(newComponents);
 
-            self.setText(formattedSignText, front);
+            self.setText(formattedSignText.asImmutable(), slot);
         }
     }
 
