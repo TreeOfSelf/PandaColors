@@ -46,14 +46,17 @@ public abstract class ServerPlayNetworkHandlerMixin {
         return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(message.signedContent()));
     }
 
-    @Inject(method = "updateBookContents", at = @At("HEAD"))
-    private void pandaColors$mapBookPages(List<FilteredText> contents, int slot, CallbackInfo ci) {
-        if (!PandaColorsConfig.get().book) return;
+    // The filtered page list is immutable, so build a new list instead of mutating it (mutating threw and silently dropped the edit)
+    @ModifyVariable(method = "updateBookContents", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private List<FilteredText> pandaColors$mapBookPages(List<FilteredText> contents) {
+        if (!PandaColorsConfig.get().book) return contents;
 
-        contents.replaceAll(page -> new FilteredText(
-                TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
-                page.mask()
-        ));
+        return contents.stream()
+                .map(page -> new FilteredText(
+                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                        page.mask()
+                ))
+                .toList();
     }
 
     @Inject(method = "signBook", at = @At("HEAD"), cancellable = true)
