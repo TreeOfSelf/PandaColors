@@ -32,8 +32,8 @@ public final class PandaColorsConfig {
     public List<String> enderChestTags = new ArrayList<>(List.of("[echest]", "[ec]", "[enderchest]", "[ender]"));
     // /namecolor
     public boolean nameColor = true;
-    // Clicking a player's name in chat (and join/death/advancement messages) opens this URL. %name% is the player name. Empty = vanilla (/tell).
-    public String profileUrl = "";
+    // Replaces "joined the game" the first time a player joins. %player% is their name. Yellow like vanilla; tags/&-codes work. Empty = off.
+    public String firstJoinMessage = "";
 
     private static PandaColorsConfig defaults() {
         return new PandaColorsConfig();

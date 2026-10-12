@@ -1,11 +1,9 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
+import me.TreeOfSelf.PandaColors.ChatFormatter;
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
-import me.TreeOfSelf.PandaColors.Perms;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ChatType;
-import net.minecraft.network.chat.Component;
-import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.players.PlayerList;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,10 +22,6 @@ public class PlayerListMixin {
         if (!PandaColorsConfig.get().commandBroadcast) {
             return message;
         }
-        if (!Perms.can(source.getPlayer(), Perms.CHAT)) {
-            String stripped = TextFormattingHelper.stripFormatting(message.signedContent());
-            return stripped.equals(message.signedContent()) ? message : message.withUnsignedContent(Component.literal(stripped));
-        }
-        return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(message.signedContent()));
+        return ChatFormatter.format(source.getPlayer(), message);
     }
 }

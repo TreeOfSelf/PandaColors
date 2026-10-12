@@ -1,6 +1,6 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
-import me.TreeOfSelf.PandaColors.ChatItems;
+import me.TreeOfSelf.PandaColors.ChatFormatter;
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
 import me.TreeOfSelf.PandaColors.Perms;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
@@ -50,23 +50,7 @@ public abstract class ServerPlayNetworkHandlerMixin {
             ordinal = 0
     )
     private PlayerChatMessage pandaColors$formatChatBeforeBroadcast(PlayerChatMessage message) {
-        PandaColorsConfig cfg = PandaColorsConfig.get();
-        boolean colors = cfg.chat && Perms.can(this.player, Perms.CHAT);
-        String text = message.signedContent();
-        if (cfg.chatItems && Perms.can(this.player, Perms.CHAT_ITEMS) && ChatItems.hasTag(text)) {
-            return message.withUnsignedContent(ChatItems.build(this.player, text,
-                    part -> colors || !cfg.chat ? (colors ? TextFormattingHelper.formatStyledInput(part) : Component.literal(part))
-                            : Component.literal(TextFormattingHelper.stripFormatting(part))));
-        }
-        if (!cfg.chat) {
-            return message;
-        }
-        if (!colors) {
-            String stripped = TextFormattingHelper.stripFormatting(text);
-            return stripped.equals(text) ? message : message.withUnsignedContent(Component.literal(stripped));
-        }
-
-        return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(text));
+        return ChatFormatter.format(this.player, message);
     }
 
     // The filtered page list is immutable, so build a new list instead of mutating it (mutating threw and silently dropped the edit)
