@@ -1,9 +1,11 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.Perms;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import me.TreeOfSelf.PandaColors.mixin.accessor.ForgingScreenHandlerAccessor;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -11,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.StringUtil;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -22,9 +25,21 @@ public abstract class AnvilScreenHandlerMixin {
     @Shadow
     private String itemName;
 
+    // Without the permission the name keeps its plain text but loses the formatting
+    @Unique
+    private <T> T pandaColors$stripped(T value) {
+        if (!PandaColorsConfig.get().anvil || this.itemName == null) return value;
+        return (T) Component.literal(TextFormattingHelper.stripFormatting(this.itemName));
+    }
+
+    @Unique
+    private boolean pandaColors$enabled() {
+        return PandaColorsConfig.get().anvil && Perms.can(((ForgingScreenHandlerAccessor) this).pandaColors$getPlayer(), Perms.ANVIL);
+    }
+
     @Inject(method = "setItemName", at = @At("HEAD"), cancellable = true)
     private void checkIfRestoringOriginal(String name, CallbackInfoReturnable<Boolean> cir) {
-        if (!PandaColorsConfig.get().anvil) {
+        if (!pandaColors$enabled()) {
             return;
         }
         ForgingScreenHandlerAccessor access = (ForgingScreenHandlerAccessor) this;
@@ -45,7 +60,7 @@ public abstract class AnvilScreenHandlerMixin {
 
     @Inject(method = "setItemName", at = @At("TAIL"))
     private void handleNameChanges(String name, CallbackInfoReturnable<Boolean> cir) {
-        if (!PandaColorsConfig.get().anvil) {
+        if (!pandaColors$enabled()) {
             return;
         }
         if (cir.getReturnValue()) {
@@ -85,16 +100,16 @@ public abstract class AnvilScreenHandlerMixin {
                     target = "Lnet/minecraft/world/item/ItemStack;set(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;", ordinal = 0),
             index = 1)
     public <T> T pandaColors$formatResultName(T value) {
-        if (!PandaColorsConfig.get().anvil) {
-            return value;
+        if (!pandaColors$enabled()) {
+            return pandaColors$stripped(value);
         }
         return (T) TextFormattingHelper.formatStyledInput(this.itemName);
     }
 
     @ModifyArg(method = "setItemName", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;set(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;"))
     public <T> T pandaColors$formatSetName(T value) {
-        if (!PandaColorsConfig.get().anvil) {
-            return value;
+        if (!pandaColors$enabled()) {
+            return pandaColors$stripped(value);
         }
         return (T) TextFormattingHelper.formatStyledInput(this.itemName);
     }

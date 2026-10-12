@@ -341,6 +341,17 @@ public class TextFormattingHelper {
         return parser.parseNode(TextNode.of(processed)).toComponent(ParserContext.of(), true);
     }
 
+    // Plain text of what the formatting would produce: tags, markdown and &-codes removed (for players without the permission)
+    public static String stripFormatting(String text) {
+        if (text == null || text.isEmpty()) return text;
+        return formatStyledInput(text).getString().replaceAll("§.?", "");
+    }
+
+    public static String stripAmpersandColorCodes(String text) {
+        if (text == null) return null;
+        return applyAmpersandColorCodes(text).replaceAll("§.?", "");
+    }
+
     public static Component formatStyledInput(String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         return formatTextWithCustomCodes(applyAmpersandColorCodes(text));

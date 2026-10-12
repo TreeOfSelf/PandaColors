@@ -3,6 +3,7 @@ package me.TreeOfSelf.PandaColors.mixin;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.Perms;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
@@ -120,6 +121,17 @@ public class SignBlockEntityMixin {
             return;
         }
         SignBlockEntity self = (SignBlockEntity) (Object) this;
+        if (!Perms.can(player, Perms.SIGN)) {
+            if (self.getLevel() != null && !self.getLevel().isClientSide()) {
+                SignText.Mutable stripped = self.getText(slot).asMutable();
+                List<Component> lines = self.getText(slot).getMessages(false);
+                for (int i = 0; i < 4; i++) {
+                    stripped.setLine(i, Component.literal(TextFormattingHelper.stripFormatting(lines.get(i).getString())));
+                }
+                self.setText(stripped.asImmutable(), slot);
+            }
+            return;
+        }
         if (self.getLevel() != null && !self.getLevel().isClientSide()) {
             SignText signText = self.getText(slot);
             List<Component> currentLines = signText.getMessages(false);

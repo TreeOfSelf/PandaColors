@@ -1,6 +1,8 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
+import me.TreeOfSelf.PandaColors.ChatItems;
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.Perms;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.ChatType;
@@ -16,6 +18,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.WrittenBookContent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -32,6 +35,14 @@ public abstract class ServerPlayNetworkHandlerMixin {
     @Shadow
     protected abstract Filterable<String> filterableFromOutgoing(FilteredText text);
 
+    // &-codes become colors with the permission and are removed without it
+    @Unique
+    private String pandaColors$bookText(String raw) {
+        return Perms.can(this.player, Perms.BOOK)
+                ? TextFormattingHelper.applyAmpersandColorCodes(raw)
+                : TextFormattingHelper.stripAmpersandColorCodes(raw);
+    }
+
     @ModifyVariable(
             method = "broadcastChatMessage",
             at = @At("HEAD"),
@@ -39,11 +50,23 @@ public abstract class ServerPlayNetworkHandlerMixin {
             ordinal = 0
     )
     private PlayerChatMessage pandaColors$formatChatBeforeBroadcast(PlayerChatMessage message) {
-        if (!PandaColorsConfig.get().chat) {
+        PandaColorsConfig cfg = PandaColorsConfig.get();
+        boolean colors = cfg.chat && Perms.can(this.player, Perms.CHAT);
+        String text = message.signedContent();
+        if (cfg.chatItems && Perms.can(this.player, Perms.CHAT_ITEMS) && ChatItems.hasTag(text)) {
+            return message.withUnsignedContent(ChatItems.build(this.player, text,
+                    part -> colors || !cfg.chat ? (colors ? TextFormattingHelper.formatStyledInput(part) : Component.literal(part))
+                            : Component.literal(TextFormattingHelper.stripFormatting(part))));
+        }
+        if (!cfg.chat) {
             return message;
         }
+        if (!colors) {
+            String stripped = TextFormattingHelper.stripFormatting(text);
+            return stripped.equals(text) ? message : message.withUnsignedContent(Component.literal(stripped));
+        }
 
-        return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(message.signedContent()));
+        return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(text));
     }
 
     // The filtered page list is immutable, so build a new list instead of mutating it (mutating threw and silently dropped the edit)
@@ -53,7 +76,7 @@ public abstract class ServerPlayNetworkHandlerMixin {
 
         return contents.stream()
                 .map(page -> new FilteredText(
-                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                        pandaColors$bookText(page.raw()),
                         page.mask()
                 ))
                 .toList();
@@ -64,12 +87,12 @@ public abstract class ServerPlayNetworkHandlerMixin {
         if (!PandaColorsConfig.get().book) return;
 
         FilteredText newTitle = new FilteredText(
-                TextFormattingHelper.applyAmpersandColorCodes(title.raw()),
+                pandaColors$bookText(title.raw()),
                 title.mask()
         );
         List<FilteredText> newContents = contents.stream()
                 .map(page -> new FilteredText(
-                        TextFormattingHelper.applyAmpersandColorCodes(page.raw()),
+                        pandaColors$bookText(page.raw()),
                         page.mask()
                 ))
                 .toList();

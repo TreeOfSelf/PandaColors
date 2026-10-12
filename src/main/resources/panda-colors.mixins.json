@@ -5,6 +5,7 @@
   "mixins": [
     "AnvilScreenHandlerMixin",
     "ForgingScreenHandlerMixin",
+    "PlayerDisplayNameMixin",
     "PlayerListMixin",
     "ServerPlayNetworkHandlerMixin",
     "SignBlockEntityMixin",

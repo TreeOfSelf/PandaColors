@@ -2,8 +2,6 @@ package me.TreeOfSelf.PandaColors;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.BufferedReader;
@@ -11,6 +9,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class PandaColorsConfig {
 
@@ -25,6 +25,15 @@ public final class PandaColorsConfig {
     public boolean anvil = true;
     public boolean book = true;
     public boolean markdown = true;
+    // [item] / [inv] / [echest] in chat. Each list holds every way to type that tag (case-insensitive).
+    public boolean chatItems = true;
+    public List<String> itemTags = new ArrayList<>(List.of("[item]", "[i]", "[hand]"));
+    public List<String> inventoryTags = new ArrayList<>(List.of("[inv]", "[inventory]"));
+    public List<String> enderChestTags = new ArrayList<>(List.of("[echest]", "[ec]", "[enderchest]", "[ender]"));
+    // /namecolor
+    public boolean nameColor = true;
+    // Clicking a player's name in chat (and join/death/advancement messages) opens this URL. %name% is the player name. Empty = vanilla (/tell).
+    public String profileUrl = "";
 
     private static PandaColorsConfig defaults() {
         return new PandaColorsConfig();
@@ -38,23 +47,20 @@ public final class PandaColorsConfig {
         PandaColorsConfig cfg = defaults();
         if (Files.isRegularFile(PATH)) {
             try (BufferedReader reader = Files.newBufferedReader(PATH)) {
-                JsonObject o = JsonParser.parseReader(reader).getAsJsonObject();
-                if (o.has("chat")) cfg.chat = o.get("chat").getAsBoolean();
-                if (o.has("commandBroadcast")) cfg.commandBroadcast = o.get("commandBroadcast").getAsBoolean();
-                if (o.has("sign")) cfg.sign = o.get("sign").getAsBoolean();
-                if (o.has("anvil")) cfg.anvil = o.get("anvil").getAsBoolean();
-                if (o.has("book")) cfg.book = o.get("book").getAsBoolean();
-                if (o.has("markdown")) cfg.markdown = o.get("markdown").getAsBoolean();
+                PandaColorsConfig read = GSON.fromJson(reader, PandaColorsConfig.class);
+                if (read != null) cfg = read;
             } catch (Exception e) {
                 PandaColors.LOGGER.warn("Could not read {}, using defaults", PATH, e);
+                instance = cfg;
+                return;
             }
-        } else {
-            try {
-                Files.createDirectories(PATH.getParent());
-                save(cfg);
-            } catch (IOException e) {
-                PandaColors.LOGGER.warn("Could not write default {}", PATH, e);
-            }
+        }
+        // Writes back so new options show up in old files
+        try {
+            Files.createDirectories(PATH.getParent());
+            save(cfg);
+        } catch (IOException e) {
+            PandaColors.LOGGER.warn("Could not write {}", PATH, e);
         }
         instance = cfg;
     }

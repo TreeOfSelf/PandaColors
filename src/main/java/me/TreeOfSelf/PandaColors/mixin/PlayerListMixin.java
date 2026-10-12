@@ -1,6 +1,10 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.Perms;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.ChatType;
+import net.minecraft.network.chat.Component;
 import me.TreeOfSelf.PandaColors.TextFormattingHelper;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.players.PlayerList;
@@ -16,9 +20,13 @@ public class PlayerListMixin {
             at = @At("HEAD"),
             argsOnly = true,
             ordinal = 0)
-    private PlayerChatMessage pandaColors$formatCommandBroadcast(PlayerChatMessage message) {
+    private PlayerChatMessage pandaColors$formatCommandBroadcast(PlayerChatMessage message, PlayerChatMessage messageArg, CommandSourceStack source, ChatType.Bound bound) {
         if (!PandaColorsConfig.get().commandBroadcast) {
             return message;
+        }
+        if (!Perms.can(source.getPlayer(), Perms.CHAT)) {
+            String stripped = TextFormattingHelper.stripFormatting(message.signedContent());
+            return stripped.equals(message.signedContent()) ? message : message.withUnsignedContent(Component.literal(stripped));
         }
         return message.withUnsignedContent(TextFormattingHelper.formatStyledInput(message.signedContent()));
     }

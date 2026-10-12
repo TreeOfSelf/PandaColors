@@ -31,6 +31,8 @@ dependencies {
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	implementation include("eu.pb4:placeholder-api:3.2.0+26.3")
+	implementation include("eu.pb4:sgui:2.2.1+26.3")
+	implementation include("me.lucko:fabric-permissions-api:0.7.0")
 }
 
 

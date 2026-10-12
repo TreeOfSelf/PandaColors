@@ -1,6 +1,7 @@
 package me.TreeOfSelf.PandaColors.mixin;
 
 import me.TreeOfSelf.PandaColors.PandaColorsConfig;
+import me.TreeOfSelf.PandaColors.Perms;
 import me.TreeOfSelf.PandaColors.mixin.accessor.ForgingScreenHandlerAccessor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -31,7 +32,7 @@ public class ForgingScreenHandlerMixin {
 
     @Inject(method = "slotsChanged", at = @At("HEAD"))
     private void restoreOriginalNameFromInput(Container inventory, CallbackInfo ci) {
-        if (!PandaColorsConfig.get().anvil) {
+        if (!PandaColorsConfig.get().anvil || !Perms.can(this.player, Perms.ANVIL)) {
             return;
         }
         ItemCombinerMenu self = (ItemCombinerMenu) (Object) this;
