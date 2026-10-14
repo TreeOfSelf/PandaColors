@@ -18,10 +18,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class TextFormattingHelper {
 
     private static final Map<String, Integer> COLOR_MAP = new LinkedHashMap<>();
+
+    // Library tags kept from its defaults: color, gradient, and the looks (bold, italic, underline, strikethrough, obfuscated, shadow, rainbow)
+    private static final Set<String> ALLOWED_TAGS = Set.of(
+            "color", "colour", "gradient", "gr", "hard_gradient", "hgr",
+            "b", "bold", "i", "italic", "em", "u", "underline", "underlined",
+            "st", "s", "strikethrough", "obf", "obfuscated", "shadow", "rainbow", "rb"
+    );
 
     private static final NodeParser PARSER_BASE;
     private static final NodeParser PARSER_WITH_MARKDOWN;
@@ -231,8 +239,13 @@ public class TextFormattingHelper {
         COLOR_MAP.put("iron",        0xA19D94);
 
         // Build tag registry: copy defaults, replace gradient tags with our own
-        TagRegistry.Builder builder = TagRegistry.builderCopyDefault()
-                .remove("gradient")
+        // Only colors and looks: everything else in the library's defaults (url, click, hover, insert, lang, nbt, score, selector, font, ...) is dropped
+        TagRegistry defaults = TagRegistry.copyDefault();
+        TagRegistry.Builder builder = TagRegistry.builder();
+        for (TextTag tag : defaults.getTags()) {
+            if (ALLOWED_TAGS.contains(tag.name())) builder.add(tag);
+        }
+        builder.remove("gradient")
                 .remove("hard_gradient");
 
         // Register every color name as a proper enclosing tag
@@ -279,7 +292,9 @@ public class TextFormattingHelper {
                         MarkdownLiteParserV1.MarkdownFormat.ITALIC,
                         MarkdownLiteParserV1.MarkdownFormat.UNDERLINE,
                         MarkdownLiteParserV1.MarkdownFormat.STRIKETHROUGH,
-                        MarkdownLiteParserV1.MarkdownFormat.SPOILER
+                        MarkdownLiteParserV1.MarkdownFormat.SPOILER,
+                        MarkdownLiteParserV1.MarkdownFormat.QUOTE,
+                        MarkdownLiteParserV1.MarkdownFormat.URL
                 )
                 .build();
     }

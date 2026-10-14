@@ -4,7 +4,7 @@
 
 ## Description
 
-Adds simple colors and foramtting to signs, names in anvil, and books using [Placeholder API](https://placeholders.pb4.eu/user/text-format/#colors).
+Adds colors and formatting to signs, names in anvil, and books. Colors use tags (`<red>`, `<gr:red:gold>`, `<#ff8800>`). Chat also takes Discord-style markdown: bold, italic, underline, strikethrough, spoiler, quotes, and `[text](url)` links (the game asks before opening a link). Built on [Placeholder API](https://placeholders.pb4.eu/user/text-format/#colors) with only the color and style tags enabled.
 Signs will keep their formatting even when you edit them, as well as items. 
 
 ## Media
