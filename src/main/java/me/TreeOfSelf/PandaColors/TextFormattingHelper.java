@@ -1,6 +1,7 @@
 package me.TreeOfSelf.PandaColors;
 
 import eu.pb4.placeholders.api.ParserContext;
+import eu.pb4.placeholders.api.arguments.StringArgs;
 import eu.pb4.placeholders.api.node.TextNode;
 import eu.pb4.placeholders.api.node.parent.ColorNode;
 import eu.pb4.placeholders.api.node.parent.GradientNode;
@@ -32,7 +33,15 @@ public class TextFormattingHelper {
     );
 
     private static final NodeParser PARSER_BASE;
+    // No [text](url) links: a url the client can't decode disconnects everyone who sees the message, and only the
+    // server's own chat links ([item], [inv], ...) should be clickable
     private static final NodeParser PARSER_WITH_MARKDOWN;
+    private static final NodeParser PARSER_BASIC;
+
+    // Formatting that isn't color, allowed without the chat permission
+    private static final Set<String> STYLE_TAGS = Set.of(
+            "b", "bold", "i", "italic", "em", "u", "underline", "underlined", "st", "s", "strikethrough", "obf", "obfuscated"
+    );
 
     static {
         // --- Minecraft named color aliases (no underscores) ---
@@ -243,7 +252,8 @@ public class TextFormattingHelper {
         TagRegistry defaults = TagRegistry.copyDefault();
         TagRegistry.Builder builder = TagRegistry.builder();
         for (TextTag tag : defaults.getTags()) {
-            if (ALLOWED_TAGS.contains(tag.name())) builder.add(tag);
+            // Named colors (<red>, <gold>, <pink>, ...) are separate tags of type "color"
+            if (ALLOWED_TAGS.contains(tag.name()) || "color".equals(tag.type())) builder.add(tag);
         }
         builder.remove("gradient")
                 .remove("hard_gradient");
@@ -293,8 +303,37 @@ public class TextFormattingHelper {
                         MarkdownLiteParserV1.MarkdownFormat.UNDERLINE,
                         MarkdownLiteParserV1.MarkdownFormat.STRIKETHROUGH,
                         MarkdownLiteParserV1.MarkdownFormat.SPOILER,
-                        MarkdownLiteParserV1.MarkdownFormat.QUOTE,
-                        MarkdownLiteParserV1.MarkdownFormat.URL
+                        MarkdownLiteParserV1.MarkdownFormat.QUOTE
+                )
+                .build();
+
+        // Without the chat permission: style tags (<bold>, <u>, ...) work, every other tag the library or the colored parser
+        // knows (<red>, <gold>, <gr>, <rainbow>, ...) is removed
+        TagRegistry.Builder basicBuilder = TagRegistry.builder();
+        List<TextTag> known = new ArrayList<>(defaults.getTags());
+        known.addAll(registry.getTags());
+        for (TextTag tag : known) {
+            List<String> aliases = tag.aliases() == null ? List.of() : List.of(tag.aliases());
+            if (STYLE_TAGS.contains(tag.name())) {
+                basicBuilder.add(tag);
+                continue;
+            }
+            basicBuilder.add(tag.selfContained()
+                    ? TextTag.self(tag.name(), aliases, "strip", true, (StringArgs args) -> TextNode.of(""))
+                    : TextTag.enclosing(tag.name(), aliases, "strip", true, (nodes, args, parser) -> new ParentNode(nodes)));
+        }
+        basicBuilder.add(TextTag.self("ra", "strip", true, (StringArgs args) -> TextNode.of("")));
+
+        PARSER_BASIC = new ParserBuilder()
+                .simplifiedTextFormat()
+                .customTagRegistry(basicBuilder.build())
+                .markdown(
+                        MarkdownLiteParserV1.MarkdownFormat.BOLD,
+                        MarkdownLiteParserV1.MarkdownFormat.ITALIC,
+                        MarkdownLiteParserV1.MarkdownFormat.UNDERLINE,
+                        MarkdownLiteParserV1.MarkdownFormat.STRIKETHROUGH,
+                        MarkdownLiteParserV1.MarkdownFormat.SPOILER,
+                        MarkdownLiteParserV1.MarkdownFormat.QUOTE
                 )
                 .build();
     }
@@ -370,5 +409,15 @@ public class TextFormattingHelper {
     public static Component formatStyledInput(String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         return formatTextWithCustomCodes(applyAmpersandColorCodes(text));
+    }
+
+    public static Component formatBasicMarkdown(String text) {
+        if (text == null || text.isEmpty()) return Component.empty();
+        if (!PandaColorsConfig.get().markdown) {
+            return Component.literal(stripFormatting(text));
+        }
+        // &l &o &n &m &k work, color codes are removed
+        String sanitized = applyAmpersandColorCodes(text).replaceAll("§[0-9a-fA-FrRxX]", "");
+        return PARSER_BASIC.parseNode(TextNode.of(sanitized)).toComponent(ParserContext.of(), true);
     }
 }
