@@ -121,25 +121,20 @@ public class SignBlockEntityMixin {
             return;
         }
         SignBlockEntity self = (SignBlockEntity) (Object) this;
-        if (!Perms.can(player, Perms.SIGN)) {
-            if (self.getLevel() != null && !self.getLevel().isClientSide()) {
-                SignText.Mutable stripped = self.getText(slot).asMutable();
-                List<Component> lines = self.getText(slot).getMessages(false);
-                for (int i = 0; i < 4; i++) {
-                    stripped.setLine(i, Component.literal(TextFormattingHelper.stripFormatting(lines.get(i).getString())));
-                }
-                self.setText(stripped.asImmutable(), slot);
-            }
-            return;
-        }
         if (self.getLevel() != null && !self.getLevel().isClientSide()) {
             SignText signText = self.getText(slot);
             List<Component> currentLines = signText.getMessages(false);
+            JsonObject previousLines = previousLines(self, slot);
+            boolean allowed = Perms.can(player, Perms.SIGN);
             JsonObject originalLines = new JsonObject();
             StringBuilder combinedText = new StringBuilder();
             for (int i = 0; i < 4; i++) {
-                Component originalText = currentLines.get(i);
-                String originalString = originalText.getString();
+                String originalString = currentLines.get(i).getString();
+                if (!allowed) {
+                    String previous = previousLines != null && previousLines.has("line_" + i)
+                            ? previousLines.get("line_" + i).getAsString() : "";
+                    originalString = keepPreviousFormatting(originalString, previous);
+                }
                 originalLines.addProperty("line_" + i, originalString);
 
                 if (i > 0) combinedText.append("\n");
@@ -172,6 +167,44 @@ public class SignBlockEntityMixin {
 
             self.setText(formattedSignText.asImmutable(), slot);
         }
+    }
+
+    @Unique
+    private static final java.util.regex.Pattern FORMAT_TOKEN = java.util.regex.Pattern.compile("<[^<>]*>|&[0-9a-fk-orA-FK-OR]");
+
+    @Unique
+    private static JsonObject previousLines(SignBlockEntity self, SignTextSlot slot) {
+        CustomData customData = self.components().get(DataComponents.CUSTOM_DATA);
+        if (customData == null) return null;
+        String json = customData.copyTag().getString(originalKey(slot)).orElse("");
+        if (json.isEmpty()) return null;
+        try {
+            return JsonParser.parseString(json).getAsJsonObject();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    // Without the sign permission: an unchanged line stays as it was, otherwise tags and &-codes that were already on
+    // that line are kept and any other formatting is removed
+    @Unique
+    private static String keepPreviousFormatting(String line, String previous) {
+        if (line.equals(previous)) return line;
+        java.util.Set<String> previousTokens = new java.util.HashSet<>();
+        java.util.regex.Matcher pm = FORMAT_TOKEN.matcher(previous);
+        while (pm.find()) previousTokens.add(pm.group());
+
+        StringBuilder out = new StringBuilder();
+        java.util.regex.Matcher m = FORMAT_TOKEN.matcher(line);
+        int last = 0;
+        while (m.find()) {
+            out.append(TextFormattingHelper.stripFormatting(line.substring(last, m.start())));
+            String token = m.group();
+            out.append(previousTokens.contains(token) ? token : TextFormattingHelper.stripFormatting(token));
+            last = m.end();
+        }
+        out.append(TextFormattingHelper.stripFormatting(line.substring(last)));
+        return out.toString();
     }
 
     @Unique
