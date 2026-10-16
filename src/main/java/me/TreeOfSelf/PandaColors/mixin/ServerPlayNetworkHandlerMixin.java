@@ -58,26 +58,35 @@ public abstract class ServerPlayNetworkHandlerMixin {
     private List<FilteredText> pandaColors$mapBookPages(List<FilteredText> contents) {
         if (!PandaColorsConfig.get().book) return contents;
 
-        return contents.stream()
-                .map(page -> new FilteredText(
-                        pandaColors$bookText(page.raw()),
-                        page.mask()
-                ))
-                .toList();
+        if (!Perms.can(this.player, Perms.BOOK)) {
+            return contents.stream()
+                    .map(page -> new FilteredText(
+                            TextFormattingHelper.stripFormatting(page.raw()),
+                            page.mask()
+                    ))
+                    .toList();
+        }
+        return contents;
     }
 
     @Inject(method = "signBook", at = @At("HEAD"), cancellable = true)
     private void pandaColors$signBook(FilteredText title, List<FilteredText> contents, int slot, CallbackInfo ci) {
         if (!PandaColorsConfig.get().book) return;
 
+        boolean canFormat = Perms.can(this.player, Perms.BOOK);
+
         FilteredText newTitle = new FilteredText(
-                pandaColors$bookText(title.raw()),
+                canFormat
+                        ? TextFormattingHelper.applyAmpersandColorCodes(title.raw())
+                        : TextFormattingHelper.stripAmpersandColorCodes(title.raw()),
                 title.mask()
         );
-        List<FilteredText> newContents = contents.stream()
-                .map(page -> new FilteredText(
-                        pandaColors$bookText(page.raw()),
-                        page.mask()
+
+        List<Filterable<Component>> pages = contents.stream()
+                .map(page -> this.filterableFromOutgoing(page).map(raw ->
+                        canFormat
+                                ? TextFormattingHelper.formatStyledInput(raw)
+                                : Component.literal(TextFormattingHelper.stripFormatting(raw))
                 ))
                 .toList();
 
@@ -85,7 +94,13 @@ public abstract class ServerPlayNetworkHandlerMixin {
         if (carried.has(DataComponents.WRITABLE_BOOK_CONTENT)) {
             ItemStack writtenBook = carried.transmuteCopy(Items.WRITTEN_BOOK);
             writtenBook.remove(DataComponents.WRITABLE_BOOK_CONTENT);
-            List<Filterable<Component>> pages = newContents.stream().map((page) -> (Filterable<Component>)(Filterable<?>)this.filterableFromOutgoing(page).map(Component::literal)).toList();            writtenBook.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(this.filterableFromOutgoing(newTitle), this.player.getPlainTextName(), 0, pages, true));
+            writtenBook.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(
+                    this.filterableFromOutgoing(newTitle),
+                    this.player.getPlainTextName(),
+                    0,
+                    pages,
+                    true
+            ));
             this.player.getInventory().setItem(slot, writtenBook);
         }
         ci.cancel();
