@@ -79,8 +79,9 @@ public class SignBlockEntityMixin {
     @Unique
     private void restoreTextSide(SignBlockEntity self, CompoundTag nbt, String key, SignTextSlot slot, boolean showOriginal) {
 
-        String jsonString = nbt.getString(key).orElse("");
-        JsonObject originalLines = JsonParser.parseString(jsonString).getAsJsonObject();
+        // Same safe parse as previousLines: a broken value skips the restore instead of throwing
+        JsonObject originalLines = previousLines(self, slot);
+        if (originalLines == null) return;
 
         SignText.Mutable signText = self.getText(slot).asMutable();
 
