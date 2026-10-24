@@ -1,6 +1,7 @@
 package me.TreeOfSelf.PandaColors;
 
 import me.lucko.fabric.api.permissions.v0.Permissions;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
 // pandacolors.<feature> permissions, allowed unless a permission provider (like PandaVotes) says otherwise
@@ -13,7 +14,9 @@ public final class Perms {
     public static final String BOOK = "pandacolors.book";
     public static final String NAME_COLOR = "pandacolors.namecolor";
 
+    // Menus also run on the client (LocalPlayer), where the permissions API throws; only the server decides
     public static boolean can(Player player, String permission) {
-        return player == null || Permissions.check(player, permission, true);
+        if (!(player instanceof ServerPlayer)) return true;
+        return Permissions.check(player, permission, true);
     }
 }
