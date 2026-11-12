@@ -29,7 +29,16 @@ public abstract class AnvilScreenHandlerMixin {
     @Unique
     private <T> T pandaColors$stripped(T value) {
         if (!PandaColorsConfig.get().anvil || this.itemName == null) return value;
-        return (T) Component.literal(TextFormattingHelper.stripFormatting(this.itemName));
+        return (T) pandaColors$notBlank(Component.literal(TextFormattingHelper.stripFormatting(this.itemName)));
+    }
+
+    // Vanilla never gives an item a blank name; a name that is only tags (like "<red>") keeps its typed text
+    @Unique
+    private Component pandaColors$notBlank(Component name) {
+        if (StringUtil.isBlank(name.getString()) && this.itemName != null && !StringUtil.isBlank(this.itemName)) {
+            return Component.literal(this.itemName);
+        }
+        return name;
     }
 
     @Unique
@@ -103,7 +112,7 @@ public abstract class AnvilScreenHandlerMixin {
         if (!pandaColors$enabled()) {
             return pandaColors$stripped(value);
         }
-        return (T) TextFormattingHelper.formatStyledInput(this.itemName);
+        return (T) pandaColors$notBlank(TextFormattingHelper.formatStyledInput(this.itemName));
     }
 
     @ModifyArg(method = "setItemName", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;set(Lnet/minecraft/core/component/DataComponentType;Ljava/lang/Object;)Ljava/lang/Object;"))
@@ -111,6 +120,6 @@ public abstract class AnvilScreenHandlerMixin {
         if (!pandaColors$enabled()) {
             return pandaColors$stripped(value);
         }
-        return (T) TextFormattingHelper.formatStyledInput(this.itemName);
+        return (T) pandaColors$notBlank(TextFormattingHelper.formatStyledInput(this.itemName));
     }
 }
