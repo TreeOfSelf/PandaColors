@@ -25,6 +25,8 @@ public final class PandaColorsConfig {
     public boolean anvil = true;
     public boolean book = true;
     public boolean markdown = true;
+    // &-codes like &e (yellow), &l (bold), &#ff8800 (hex), &r (reset). Off = & is plain text.
+    public boolean ampersandCodes = true;
     // [item] / [inv] / [echest] in chat. Each list holds every way to type that tag (case-insensitive).
     public boolean chatItems = true;
     public List<String> itemTags = new ArrayList<>(List.of("[item]", "[i]", "[hand]"));

@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TextFormattingHelper {
 
@@ -356,8 +358,98 @@ public class TextFormattingHelper {
     // Public API
     // -------------------------------------------------------------------------
 
+    private static final String[] LEGACY_COLORS = {
+            "black", "dark_blue", "dark_green", "dark_aqua", "dark_red", "dark_purple", "gold", "gray",
+            "dark_gray", "blue", "green", "aqua", "red", "light_purple", "yellow", "white"
+    };
+
+    // &-codes as the tags the parser already knows, so they mix with <red>, gradients and markdown.
+    // Like vanilla, a color code (&0-&f, &#rrggbb) or &r ends every style an earlier &-code started; tags typed with <> stay open.
+    // \&e is a plain "&e".
+    public static String ampersandToTags(String input) {
+        if (input == null || !PandaColorsConfig.get().ampersandCodes || input.indexOf('&') < 0) return input;
+        StringBuilder out = new StringBuilder(input.length() + 16);
+        // &-tags still open, with how many typed tags deep each was opened; only the ones at the current depth get closed,
+        // so &-tags and typed tags never cross
+        List<String> open = new ArrayList<>();
+        List<Integer> openDepth = new ArrayList<>();
+        int depth = 0;
+        int n = input.length();
+        for (int i = 0; i < n; i++) {
+            char c = input.charAt(i);
+            if (c == '\\' && i + 1 < n && input.charAt(i + 1) == '&') {
+                out.append('&');
+                i++;
+                continue;
+            }
+            if (c == '<') {
+                Matcher tag = TYPED_TAG.matcher(input).region(i, n);
+                if (tag.lookingAt()) {
+                    if (tag.group(1) != null) {
+                        closeLegacy(out, open, openDepth, depth);
+                        depth = Math.max(0, depth - 1);
+                    } else {
+                        depth++;
+                    }
+                    out.append(tag.group());
+                    i = tag.end() - 1;
+                    continue;
+                }
+            }
+            if (c != '&' || i + 1 >= n) {
+                out.append(c);
+                continue;
+            }
+            char code = Character.toLowerCase(input.charAt(i + 1));
+            String color = null;
+            int skip = 1;
+            if (code == '#' && i + 8 <= n && input.substring(i + 2, i + 8).matches("[0-9a-fA-F]{6}")) {
+                color = "#" + input.substring(i + 2, i + 8);
+                skip = 7;
+            } else if (code >= '0' && code <= '9') {
+                color = LEGACY_COLORS[code - '0'];
+            } else if (code >= 'a' && code <= 'f') {
+                color = LEGACY_COLORS[code - 'a' + 10];
+            }
+            String style = switch (code) {
+                case 'l' -> "b";
+                case 'o' -> "i";
+                case 'n' -> "u";
+                case 'm' -> "st";
+                case 'k' -> "obf";
+                default -> null;
+            };
+            if (color == null && style == null && code != 'r') {
+                out.append(c);
+                continue;
+            }
+            if (style == null) closeLegacy(out, open, openDepth, depth);
+            String name = color != null ? "c" : style;
+            if (name != null) {
+                out.append('<').append(name);
+                if (color != null) out.append(':').append(color);
+                out.append('>');
+                open.add(name);
+                openDepth.add(depth);
+            }
+            i += skip;
+        }
+        return out.toString();
+    }
+
+    // <tag>, <tag:args> or </tag>; a lone < in text is not a tag
+    private static final Pattern TYPED_TAG = Pattern.compile("<(/)?[a-zA-Z#][^<>]*>");
+
+    private static void closeLegacy(StringBuilder out, List<String> open, List<Integer> openDepth, int depth) {
+        for (int k = open.size() - 1; k >= 0 && openDepth.get(k) >= depth; k--) {
+            out.append("</").append(open.remove(k)).append('>');
+            openDepth.remove(k);
+        }
+    }
+
+    // Book titles are plain strings, so they keep the vanilla section-sign codes
     public static String applyAmpersandColorCodes(String input) {
-        if (input == null) return null;
+        if (input == null || !PandaColorsConfig.get().ampersandCodes) return input;
 
         StringBuilder result = new StringBuilder();
         char[] chars = input.toCharArray();
@@ -408,7 +500,7 @@ public class TextFormattingHelper {
 
     public static Component formatStyledInput(String text) {
         if (text == null || text.isEmpty()) return Component.empty();
-        return formatTextWithCustomCodes(applyAmpersandColorCodes(text));
+        return formatTextWithCustomCodes(ampersandToTags(text));
     }
 
     public static Component formatBasicMarkdown(String text) {
@@ -416,8 +508,7 @@ public class TextFormattingHelper {
         if (!PandaColorsConfig.get().markdown) {
             return Component.literal(stripFormatting(text));
         }
-        // &l &o &n &m &k work, color codes are removed
-        String sanitized = applyAmpersandColorCodes(text).replaceAll("§[0-9a-fA-FrRxX]", "");
-        return PARSER_BASIC.parseNode(TextNode.of(sanitized)).toComponent(ParserContext.of(), true);
+        // &l &o &n &m &k work, color codes are removed (the basic parser strips <c:...>)
+        return PARSER_BASIC.parseNode(TextNode.of(ampersandToTags(text))).toComponent(ParserContext.of(), true);
     }
 }

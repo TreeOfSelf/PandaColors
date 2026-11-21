@@ -5,6 +5,7 @@
 ## Description
 
 Adds colors and formatting to signs, names in anvil, and books. Colors use tags (`<red>`, `<gr:red:gold>`, `<#ff8800>`). Chat also takes Discord-style markdown: bold, italic, underline, strikethrough, spoiler, quotes, and `[text](url)` links (the game asks before opening a link). Built on [Placeholder API](https://placeholders.pb4.eu/user/text-format/#colors) with only the color and style tags enabled.
+Vanilla-style `&` codes work too and mix with the tags: `&e` yellow, `&c` red (all of `&0`-`&f`), `&l` bold, `&o` italic, `&n` underline, `&m` strikethrough, `&k` obfuscated, `&r` reset, `&#ff8800` hex. Like vanilla, a color code or `&r` ends the styles earlier `&` codes started. `\&e` types a plain `&e`. Turn them off with `"ampersandCodes": false` in `config/PandaColors.json`.
 Signs will keep their formatting even when you edit them, as well as items. 
 
 ## Media
