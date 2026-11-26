@@ -16,7 +16,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.ItemContainerContents;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +40,7 @@ public final class ChatItems {
             return size() > MAX_SNAPSHOTS;
         }
     };
+    private static final Map<UUID, Deque<Long>> PLAYER_USAGE = new HashMap<>();
 
     // Inventory slots in GUI order: main inventory, hotbar, then helmet, chestplate, leggings, boots, (gap), offhand
     private static final int[] INVENTORY_LAYOUT;
@@ -57,17 +61,41 @@ public final class ChatItems {
     public static MutableComponent build(ServerPlayer player, String message, java.util.function.Function<String, Component> text) {
         MutableComponent out = Component.empty();
         String lower = message.toLowerCase(Locale.ROOT);
+        int maxPerMessage = PandaColorsConfig.get().chatItemsMaxPerMessage;
+        int count = 0;
         int pos = 0;
         while (true) {
+            if (maxPerMessage > 0 && count >= maxPerMessage) break;
             Match match = findTag(lower, pos);
             if (match == null) break;
             if (match.start > pos) out.append(text.apply(message.substring(pos, match.start)));
-            Component link = link(player, match.kind);
+            Component link = allowSnapshot(player.getUUID()) ? link(player, match.kind) : null;
             out.append(link != null ? link : Component.literal(message.substring(match.start, match.end)));
+            if (link != null) count++;
             pos = match.end;
         }
         if (pos < message.length()) out.append(text.apply(message.substring(pos)));
         return out;
+    }
+
+    private static boolean allowSnapshot(UUID uuid) {
+        PandaColorsConfig cfg = PandaColorsConfig.get();
+        if (cfg.chatItemsMaxPerWindow <= 0 || cfg.chatItemsWindowSeconds <= 0) {
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        long cutoff = now - cfg.chatItemsWindowSeconds * 1000L;
+        synchronized (PLAYER_USAGE) {
+            Deque<Long> times = PLAYER_USAGE.computeIfAbsent(uuid, k -> new ArrayDeque<>());
+            while (!times.isEmpty() && times.peekFirst() <= cutoff) {
+                times.removeFirst();
+            }
+            if (times.size() >= cfg.chatItemsMaxPerWindow) {
+                return false;
+            }
+            times.addLast(now);
+            return true;
+        }
     }
 
     private record Match(int start, int end, Kind kind) {}

@@ -29,6 +29,9 @@ public final class PandaColorsConfig {
     public boolean ampersandCodes = true;
     // [item] / [inv] / [echest] in chat. Each list holds every way to type that tag (case-insensitive).
     public boolean chatItems = true;
+    public int chatItemsMaxPerMessage = 5;
+    public int chatItemsMaxPerWindow = 10;
+    public int chatItemsWindowSeconds = 60;
     public List<String> itemTags = new ArrayList<>(List.of("[item]", "[i]", "[hand]"));
     public List<String> inventoryTags = new ArrayList<>(List.of("[inv]", "[inventory]"));
     public List<String> enderChestTags = new ArrayList<>(List.of("[echest]", "[ec]", "[enderchest]", "[ender]"));
